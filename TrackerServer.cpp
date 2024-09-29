@@ -15,8 +15,14 @@ void DieWithError( const char *errorMessage ) // External error handling functio
     exit( 1 );
 }
 
-std::string TrackerServer::registerPlayer() {
-    return "register";
+std::string TrackerServer::registerPlayer(const std::string& name, const std::string& ipAddress, int tPort, int pPort) {
+
+    if (isPlayerRegistered(name))
+        return "FAILURE";
+    
+    PlayerInfo newPlayer = {name, ipAddress, "free"};
+    addPlayer(newPlayer);
+    return "SUCCESS";
 }
 
 std::string TrackerServer::queryPlayers() {
@@ -27,8 +33,29 @@ std::string TrackerServer::queryGames() {
     return "query_games";
 }
 
-std::string TrackerServer::deregisterPlayer() {
-    return "de-register";
+std::string TrackerServer::deregisterPlayer(const std::string& name) {
+
+    if (!isPlayerRegistered(name))
+        return "FAILURE";
+
+    if (players[name].state == "in-play")
+        return "FAILURE";
+
+    removePlayer(name);
+    return "SUCCESS";
+}
+
+// Helper functions
+bool TrackerServer::isPlayerRegistered(const std::string& name) {
+    return players.find(name) != players.end();
+}
+
+void TrackerServer::addPlayer(const PlayerInfo& player) {
+    players[player.name] = player;
+}
+
+void TrackerServer::removePlayer(const std::string& name){
+    players.erase(name);
 }
 
 int main(int argc, char *argv[]) {
@@ -42,7 +69,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in trackerServAddr;     // Local address of server
     struct sockaddr_in trackerClntAddr;     // Client address
     unsigned int cliAddrLen;                // Length of incoming message
-    char buffer[ ECHOMAX ];             // Buffer for echo string
+    char buffer[ ECHOMAX ];                 // Buffer for echo string
     unsigned short trackerServPort;         // Server port
     int recvMsgSize;                        // Size of received message
 
@@ -64,6 +91,8 @@ int main(int argc, char *argv[]) {
 
 	printf( "server: Port server is listening to is: %d\n", trackerServPort );
 
+    TrackerServer tracker;
+
     for (;;) {
         cliAddrLen = sizeof(trackerClntAddr);
 
@@ -84,23 +113,24 @@ int main(int argc, char *argv[]) {
 
         
         if (command == "register") {
-       
-        
+            std::string name, ipAddress;
+            int tPort, pPort;
+            iss >> name >> ipAddress >> tPort >> pPort;
+            response = tracker.registerPlayer(name, ipAddress, tPort, pPort);
         } else if (command == "query_players") {
-
-
+            response = tracker.queryPlayers();
         } else if (command == "query_games") {
-        
-
+            response = tracker.queryGames();
         } else if (command == "de-register") {
-        
-
+            std::string name;
+            iss >> name;
+            response = tracker.deregisterPlayer(name);
         } else {
             response = "Unknown command";
         }
-        
-        // Send received datagram back to the client
-        if( sendto( sock, buffer, strlen( buffer ), 0, (struct sockaddr *) &trackerClntAddr, sizeof( trackerClntAddr ) ) != strlen( buffer ) )
-            DieWithError( "server: sendto() sent a different number of bytes than expected" );
+
+        if (sendto(sock, response.c_str(), response.length(), 0,
+             (struct sockaddr *) &trackerClntAddr, sizeof(trackerClntAddr)) != response.length())
+            DieWithError("server: sendto() sent a different number of bytes than expected");
     }
 }
