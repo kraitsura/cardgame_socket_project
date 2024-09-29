@@ -1,3 +1,4 @@
+#include "PlayerClient.h"
 #include <stdio.h>      // for printf() and fprintf()
 #include <sys/socket.h> // for socket(), connect(), sendto(), and recvfrom()
 #include <arpa/inet.h>  // for sockaddr_in and inet_addr()
@@ -14,8 +15,33 @@ void DieWithError( const char *errorMessage ) // External error handling functio
     exit(1);
 }
 
-int main( int argc, char *argv[] )
-{
+std::string PlayerClient::sendRequest() {
+    return "request";
+}
+
+std::string PlayerClient::registerPlayer() {
+    return "register";
+}
+
+std::string PlayerClient::queryPlayers() {
+    return "query_players";
+}
+
+std::string PlayerClient::queryGames() {
+    return "query_games";
+}
+
+std::string PlayerClient::deregisterPlayer() {
+    return "de-register";
+}
+
+int main( int argc, char *argv[] ) {
+    
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <Server IP> <Server Port>\n", argv[0]);
+        exit(1);
+    }
+
     size_t nread;
     int sock;                        // Socket descriptor
     struct sockaddr_in echoServAddr; // Echo server address
@@ -28,12 +54,6 @@ int main( int argc, char *argv[] )
     int respStringLen;               // Length of received response
 
     echoString = (char *) malloc( ECHOMAX );
-
-    if (argc < 3)    // Test for correct number of arguments
-    {
-        fprintf( stderr, "Usage: %s <Server IP address> <Echo Port>\n", argv[0] );
-        exit( 1 );
-    }
 
     servIP = argv[ 1 ];  // First arg: server IP address (dotted decimal)
     echoServPort = atoi( argv[2] );  // Second arg: Use given port

@@ -20,12 +20,17 @@ struct GameInfo {
 };
 
 class TrackerServer {
+    TrackerServer();
+    
     private:
         std::unordered_map<std::string, PlayerInfo> players;
         std::unordered_map<int, GameInfo> games;
 
     public:
-
+        std::string registerPlayer();
+        std::string queryPlayers();
+        std::string queryGames();
+        std::string deregisterPlayer();
 };
 
 #endif // TRACKER_SERVER_H
