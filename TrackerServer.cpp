@@ -15,6 +15,8 @@ void DieWithError( const char *errorMessage ) // External error handling functio
     exit( 1 );
 }
 
+TrackerServer::TrackerServer() : nextGameId(1) {}
+
 std::string TrackerServer::registerPlayer(const std::string& name, const std::string& ipAddress, int tPort, int pPort) {
 
     if (isPlayerRegistered(name))
