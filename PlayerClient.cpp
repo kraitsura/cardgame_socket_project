@@ -1,4 +1,3 @@
-#include "PlayerClient.h"
 #include <stdio.h>      // for printf() and fprintf()
 #include <sys/socket.h> // for socket(), connect(), sendto(), and recvfrom()
 #include <arpa/inet.h>  // for sockaddr_in and inet_addr()
@@ -6,33 +5,12 @@
 #include <string.h>     // for memset()
 #include <unistd.h>     // for close()
 
-#define ECHOMAX 255     // Longest string to echo
-#define ITERATIONS	5   // Number of iterations the client executes
+#define ECHOMAX 1000     // Longest string to echo
 
 void DieWithError( const char *errorMessage ) // External error handling function
 {
     perror( errorMessage );
     exit(1);
-}
-
-std::string PlayerClient::sendRequest() {
-    return "request";
-}
-
-std::string PlayerClient::registerPlayer() {
-    return "register";
-}
-
-std::string PlayerClient::queryPlayers() {
-    return "query_players";
-}
-
-std::string PlayerClient::queryGames() {
-    return "query_games";
-}
-
-std::string PlayerClient::deregisterPlayer() {
-    return "de-register";
 }
 
 int main( int argc, char *argv[] ) {
@@ -42,67 +20,60 @@ int main( int argc, char *argv[] ) {
         exit(1);
     }
 
-    size_t nread;
     int sock;                        // Socket descriptor
-    struct sockaddr_in echoServAddr; // Echo server address
-    struct sockaddr_in fromAddr;     // Source address of echo
-    unsigned short echoServPort;     // Echo server port
+    struct sockaddr_in servAddr;     // Server address
+    struct sockaddr_in fromAddr;     // Source address of response
+    unsigned short servPort;         // Server port
     unsigned int fromSize;           // In-out of address size for recvfrom()
     char *servIP;                    // IP address of server
-    char *echoString = NULL;         // String to send to echo server
-    size_t echoStringLen = ECHOMAX;               // Length of string to echo
+    char sendBuffer[ECHOMAX];        // Buffer for sending data
+    char recvBuffer[ECHOMAX];        // Buffer for receiving data
     int respStringLen;               // Length of received response
 
-    echoString = (char *) malloc( ECHOMAX );
-
     servIP = argv[ 1 ];  // First arg: server IP address (dotted decimal)
-    echoServPort = atoi( argv[2] );  // Second arg: Use given port
+    servPort = atoi( argv[2] );  // Second arg: Use given port
 
-    printf( "client: Arguments passed: server IP %s, port %d\n", servIP, echoServPort );
-
+    printf( "client: Arguments passed: server IP %s, port %d\n", servIP, servPort );
+    
     // Create a datagram/UDP socket
-    if( ( sock = socket( PF_INET, SOCK_DGRAM, IPPROTO_UDP ) ) < 0 )
-        DieWithError( "client: socket() failed" );
+    if ((sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+        DieWithError("PlayerClient: socket() failed");
 
     // Construct the server address structure
-    memset( &echoServAddr, 0, sizeof( echoServAddr ) ); // Zero out structure
-    echoServAddr.sin_family = AF_INET;                  // Use internet addr family
-    echoServAddr.sin_addr.s_addr = inet_addr( servIP ); // Set server's IP address
-    echoServAddr.sin_port = htons( echoServPort );      // Set server's port
+    memset( &servAddr, 0, sizeof( servAddr ) ); // Zero out structure
+    servAddr.sin_family = AF_INET;                  // Use internet addr family
+    servAddr.sin_addr.s_addr = inet_addr( servIP ); // Set server's IP address
+    servAddr.sin_port = htons( servPort );      // Set server's port
 
 	// Pass string back and forth between server ITERATIONS times
 
-	printf( "client: Echoing strings for %d iterations\n", ITERATIONS );
-
-    for( int i = 0; i < ITERATIONS; i++ )
+    while(1)
     {
-        printf( "\nEnter string to echo: \n" );
-        if( ( nread = getline( &echoString, &echoStringLen, stdin ) ) != -1 )
-        {
-            echoString[ (int) strlen( echoString) - 1 ] = '\0'; // Overwrite newline
-            printf( "\nclient: reads string ``%s''\n", echoString );
-        }
-        else
-            DieWithError( "client: error reading string to echo\n" );
-
-        // Send the string to the server
-        if( sendto( sock, echoString, strlen( echoString ), 0, (struct sockaddr *) &echoServAddr, sizeof( echoServAddr ) ) != strlen(echoString) )
-       		DieWithError( "client: sendto() sent a different number of bytes than expected" );
+        printf("\nEnter command (or 'quit' to exit):\n");
+        fgets(sendBuffer, ECHOMAX, stdin);
+        sendBuffer[strcspn(sendBuffer, "\n")] = 0; // Remove newline
+        
+        
+        if (strcmp(sendBuffer, "quit") == 0)
+            break;
+        
+        // Send the command to the server
+        if (sendto(sock, sendBuffer, strlen(sendBuffer), 0, (struct sockaddr *)&servAddr, sizeof(servAddr)) != strlen(sendBuffer))
+            DieWithError("PlayerClient: sendto() sent a different number of bytes than expected");
 
         // Receive a response
-        fromSize = sizeof( fromAddr );
+        fromSize = sizeof(fromAddr);
+        if ((respStringLen = recvfrom(sock, recvBuffer, ECHOMAX, 0, (struct sockaddr *)&fromAddr, &fromSize)) < 0)
+            DieWithError("PlayerClient: recvfrom() failed");
 
-        if( ( respStringLen = recvfrom( sock, echoString, ECHOMAX, 0, (struct sockaddr *) &fromAddr, &fromSize ) ) > ECHOMAX )
-            DieWithError( "client: recvfrom() failed" );
+        recvBuffer[respStringLen] = '\0';  // Null-terminate the received data
 
-        echoString[ respStringLen ] = '\0';
+        if (servAddr.sin_addr.s_addr != fromAddr.sin_addr.s_addr)
+            DieWithError("PlayerClient: Error: received a packet from unknown source.\n");
 
-        if( echoServAddr.sin_addr.s_addr != fromAddr.sin_addr.s_addr )
-            DieWithError( "client: Error: received a packet from unknown source.\n" );
-
- 		printf( "client: received string ``%s'' from server on IP address %s\n", echoString, inet_ntoa( fromAddr.sin_addr ) );
+        printf("PlayerClient: Received response from server: %s\n", recvBuffer);
     }
-    
-    close( sock );
-    exit( 0 );
+
+    close(sock);
+    return 0;
 }
