@@ -6,6 +6,7 @@
 #include <string.h>     // for memset()
 #include <unistd.h>     // for close()
 #include <sstream>
+#include <map>
 
 #define ECHOMAX 1000    // Longest string to echo
 
@@ -22,17 +23,10 @@ std::string TrackerServer::registerPlayer(const std::string& name, const std::st
     if (isPlayerRegistered(name))
         return "FAILURE";
     
-    PlayerInfo newPlayer = {name, ipAddress, "free"};
+    PlayerInfo newPlayer = {name, ipAddress, "free", tPort, pPort};
     addPlayer(newPlayer);
+    printf("Player registered: %s\n", name.c_str());
     return "SUCCESS";
-}
-
-std::string TrackerServer::queryPlayers() {
-    return "query_players";
-}
-
-std::string TrackerServer::queryGames() {
-    return "query_games";
 }
 
 std::string TrackerServer::deregisterPlayer(const std::string& name) {
@@ -44,7 +38,32 @@ std::string TrackerServer::deregisterPlayer(const std::string& name) {
         return "FAILURE";
 
     removePlayer(name);
+    printf("Player de-registered: %s\n", name.c_str());
     return "SUCCESS";
+}
+
+std::string TrackerServer::queryPlayers() {
+    std::ostringstream oss;
+    oss << players.size() << "\n";
+    for (const auto& pair : players) {
+        const PlayerInfo& player = pair.second;
+        oss << player.name << " " << player.ipAddress << " " << player.tPort << " " << player.pPort << " " << player.state << "\n";
+    }
+    return oss.str();
+}
+
+std::string TrackerServer::queryGames() {
+    std::ostringstream oss;
+    oss << games.size() << "\n";
+    for (const auto& pair : games) {
+        const GameInfo& game = pair.second;
+        oss << game.gameId << " " << game.dealer;
+        for (const auto& player : game.players) {
+            oss << " " << player;
+        }
+        oss << "\n";
+    }
+    return oss.str();
 }
 
 // Helper functions
@@ -74,6 +93,7 @@ int main(int argc, char *argv[]) {
     char buffer[ ECHOMAX ];                 // Buffer for echo string
     unsigned short trackerServPort;         // Server port
     int recvMsgSize;                        // Size of received message
+    std::map<std::string, std::string> ipToPlayerName; // Map of IP addresses to player names
 
     trackerServPort = atoi(argv[1]);        // First arg: local port
 
@@ -91,9 +111,9 @@ int main(int argc, char *argv[]) {
     if( bind( sock, (struct sockaddr *) &trackerServAddr, sizeof(trackerServAddr)) < 0 )
         DieWithError( "server: bind() failed" );
 
-	printf( "server: Port server is listening to is: %d\n", trackerServPort );
-
     TrackerServer tracker;
+
+    printf("Tracker server is running on port %d\n", trackerServPort);
 
     for (;;) {
         cliAddrLen = sizeof(trackerClntAddr);
@@ -105,20 +125,29 @@ int main(int argc, char *argv[]) {
         
         // New Handling of Client
         buffer[recvMsgSize] = '\0';
-        printf("Handling client %s\n", inet_ntoa(trackerClntAddr.sin_addr));
+        std::string clientIP = inet_ntoa(trackerClntAddr.sin_addr);
+        std::string playerName = ipToPlayerName[clientIP];
+        
+        if (playerName.empty()) {
+            printf("Received from client %s: %s\n", clientIP.c_str(), buffer);
+        } else {
+            printf("Received from client %s (%s): %s\n", clientIP.c_str(), playerName.c_str(), buffer);
+        }
         
         // Handling of Commands
         std::string response;
         std::istringstream iss(buffer);
         std::string command;
         iss >> command;
-
         
         if (command == "register") {
             std::string name, ipAddress;
             int tPort, pPort;
             iss >> name >> ipAddress >> tPort >> pPort;
             response = tracker.registerPlayer(name, ipAddress, tPort, pPort);
+            if (response == "SUCCESS") {
+                ipToPlayerName[clientIP] = name;
+            }
         } else if (command == "query_players") {
             response = tracker.queryPlayers();
         } else if (command == "query_games") {
@@ -127,6 +156,9 @@ int main(int argc, char *argv[]) {
             std::string name;
             iss >> name;
             response = tracker.deregisterPlayer(name);
+            if (response == "SUCCESS") {
+                ipToPlayerName.erase(clientIP);
+            }
         } else {
             response = "Unknown command";
         }
