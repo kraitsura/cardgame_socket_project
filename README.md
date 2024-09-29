@@ -1,8 +1,6 @@
 # cardgame_socket_project
 Six Card Golf implemented in C++ using sockets
 
-# Six Card Golf Game Tracker
-
 ## Project Overview
 
 This project implements a peer-to-peer (P2P) application for tracking players and games in the card game "Six Card Golf". It consists of two main components:
