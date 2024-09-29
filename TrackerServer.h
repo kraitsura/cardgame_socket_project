@@ -25,6 +25,7 @@ class TrackerServer {
     private:
         std::unordered_map<std::string, PlayerInfo> players;
         std::unordered_map<int, GameInfo> games;
+        int nextGameId;
 
     public:
         TrackerServer();
