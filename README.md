@@ -17,11 +17,6 @@ The system uses UDP for communication between clients and the server.
 - Querying ongoing games
 - Basic game management (future implementation)
 
-## Requirements
-
-- C++11 compatible compiler (e.g., GCC 4.8+, Clang 3.3+)
-- POSIX-compliant operating system (Linux, macOS, etc.)
-
 ## File Structure
 
 ```
