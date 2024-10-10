@@ -14,85 +14,71 @@
 
 TrackerServer::TrackerServer() : tracker() {}
 
+std::string TrackerServer::formatResponse(const std::string& command, const std::string& trackerResponse) {
+    if (trackerResponse.empty()) {
+        return "FAILURE " + command + " Empty response from tracker";
+    }
+    
+    if (trackerResponse.substr(0, 7) == "SUCCESS") {
+        return "SUCCESS " + command + " " + (trackerResponse.length() > 8 ? trackerResponse.substr(8) : "");
+    } else {
+        return "FAILURE " + command + " " + trackerResponse;
+    }
+}
+
 std::string TrackerServer::handleCommand(const Message& msg) {
     std::istringstream iss(msg.data);
     std::string response;
 
-    switch (msg.cmd) {
-        case CMD_REGISTER: {
+    switch (msg.cmd)
+    {
+        case CMD_REGISTER:
+        {
             std::string name, ipAddress;
             int tPort, pPort;
             iss >> name >> ipAddress >> tPort >> pPort;
             response = tracker.registerPlayer(name, ipAddress, tPort, pPort);
+            response = formatResponse("REGISTER", response);
             break;
         }
         case CMD_QUERY_PLAYERS:
             response = tracker.queryPlayers();
+            response = formatResponse("QUERY_PLAYERS", response);
+            break;
+        case CMD_QUERY_GAMES:
+            response = tracker.queryGames();
+            response = formatResponse("QUERY_GAMES", response);
             break;
         case CMD_START_GAME: {
             std::string dealer;
             int n, holes;
             iss >> dealer >> n >> holes;
-            response = startGame(dealer, n, holes);
+            response = tracker.startGame(dealer, n, holes);
+            response = formatResponse("START_GAME", response);
             break;
         }
-        case CMD_QUERY_GAMES:
-            response = tracker.queryGames();
-            break;
         case CMD_END_GAME: {
             int gameId;
             std::string dealer;
             iss >> gameId >> dealer;
             response = tracker.endGame(gameId, dealer);
+            response = formatResponse("END_GAME", response);
             break;
         }
         case CMD_DEREGISTER: {
             std::string name;
             iss >> name;
             response = tracker.deregisterPlayer(name);
+            response = formatResponse("DEREGISTER", response);
             break;
         }
         default:
             response = "FAILURE Unknown command";
-    }
+        }
 
     return response;
 }
 
-std::string TrackerServer::startGame(const std::string& dealer, int n, int holes) {
-    std::string trackerResponse = tracker.startGame(dealer, n, holes);
-    
-    if (trackerResponse.substr(0, 7) != "SUCCESS") {
-        return trackerResponse;  // Return failure message if game couldn't start
-    }
-
-    std::istringstream iss(trackerResponse);
-    std::string success;
-    int gameId;
-    iss >> success >> gameId;
-
-    std::vector<PlayerInfo> gamePlayers;
-    std::string name, ip;
-    int port;
-
-    // Read player information from the tracker response
-    while (iss >> name >> ip >> port) {
-        gamePlayers.push_back({name, ip, "in-play", 0, port});  // Assuming tPort is not needed here
-    }
-
-    // Construct the response with the logical ring information
-    std::ostringstream oss;
-    oss << "SUCCESS " << gameId << " " << holes << " " << gamePlayers.size() << " ";
-
-    for (size_t i = 0; i < gamePlayers.size(); ++i) {
-        const auto& player = gamePlayers[i];
-        const auto& nextPlayer = gamePlayers[(i + 1) % gamePlayers.size()];
-        oss << player.name << " " << player.ipAddress << " " << player.pPort << " "
-            << nextPlayer.name << " " << nextPlayer.ipAddress << " " << nextPlayer.pPort << " ";
-    }
-
-    return oss.str();
-}
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {

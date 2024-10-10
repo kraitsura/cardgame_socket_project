@@ -21,7 +21,6 @@ public:
     std::string deregisterPlayer(const std::string& name);
     std::string startGame(const std::string& dealer, int n, int holes);
     std::string endGame(int gameId, const std::string& dealer);
-    std::vector<std::string> selectRandomPlayers(const std::unordered_map<std::string, PlayerInfo>& players, std::mt19937& rng, int n);
 
     bool isPlayerRegistered(const std::string& name);
     bool isPlayerInGame(const std::string& name);

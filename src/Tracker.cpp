@@ -14,7 +14,7 @@ std::string Tracker::registerPlayer(const std::string& name, const std::string& 
     if (players.find(name) != players.end()) {
         return "FAILURE Player already registered";
     }
-    PlayerInfo newPlayer = {name, ipAddress, "free", tPort, pPort};
+    PlayerInfo newPlayer = {name, ipAddress, "free", tPort, pPort, std::vector<Card>()};
     players[name] = newPlayer;
     return "SUCCESS";
 }
@@ -32,7 +32,7 @@ std::string Tracker::deregisterPlayer(const std::string& name) {
 
 std::string Tracker::queryPlayers() {
     std::stringstream ss;
-    ss << players.size() << " ";
+    ss << "SUCCESS " << players.size() << " ";
     for (const auto& pair : players) {
         const PlayerInfo& player = pair.second;
         ss << player.name << " " << player.ipAddress << " " << player.tPort << " " << player.pPort << " " << player.state << " ";
@@ -42,7 +42,7 @@ std::string Tracker::queryPlayers() {
 
 std::string Tracker::queryGames() {
     std::stringstream ss;
-    ss << games.size() << " ";
+    ss << "SUCCESS " << games.size() << " ";
     for (const auto& pair : games) {
         const GameInfo& game = pair.second;
         ss << game.gameId << " " << game.dealer << " " << game.holes << " ";
@@ -63,23 +63,41 @@ std::string Tracker::startGame(const std::string& dealer, int n, int holes) {
     if (holes < 1 || holes > 9) {
         return "FAILURE Invalid number of holes";
     }
+    if (players.size() < n + 1) {
+        return "FAILURE Not enough registered players";
+    }
     
-    std::vector<std::string> selectedPlayers = selectRandomPlayers(players, rng, n);
+    std::vector<std::string> selectedPlayers;
+    for (const auto& pair : players) {
+        if (pair.first != dealer && pair.second.state == "free") {
+            selectedPlayers.push_back(pair.first);
+            if (selectedPlayers.size() == n) {
+                break;
+            }
+        }
+    }
+
     if (selectedPlayers.size() < n) {
         return "FAILURE Not enough free players";
     }
     
     GameInfo newGame = {nextGameId, dealer, selectedPlayers, holes};
-    newGame.players.push_back(dealer);
     games[nextGameId] = newGame;
     
     // Update player states
     for (const auto& player : newGame.players) {
         updatePlayerState(player, "in-play");
     }
+    updatePlayerState(dealer, "in-play");
     
     std::stringstream ss;
-    ss << "SUCCESS " << nextGameId << " ";
+    ss << "SUCCESS " << nextGameId << " " << holes << " " << (newGame.players.size() + 1) << " ";
+    
+    // Add dealer information first
+    const PlayerInfo& dealerInfo = players[dealer];
+    ss << dealerInfo.name << " " << dealerInfo.ipAddress << " " << dealerInfo.pPort << " ";
+
+    // Add information for other players
     for (const auto& player : newGame.players) {
         const PlayerInfo& info = players[player];
         ss << info.name << " " << info.ipAddress << " " << info.pPort << " ";
@@ -103,7 +121,7 @@ std::string Tracker::endGame(int gameId, const std::string& dealer) {
     for (const auto& player : it->second.players) {
         updatePlayerState(player, "free");
     }
-    
+    updatePlayerState(dealer, "free");
     games.erase(it);
     return "SUCCESS";
 }
@@ -127,13 +145,3 @@ void Tracker::updatePlayerState(const std::string& name, const std::string& stat
     }
 }
 
-std::vector<std::string> Tracker::selectRandomPlayers(const std::unordered_map<std::string, PlayerInfo>& players, std::mt19937& rng, int n) {
-    std::vector<std::string> freePlayers;
-    for (const auto& pair : players) {
-        if (pair.second.state == "free") {
-            freePlayers.push_back(pair.first);
-        }
-    }
-    std::shuffle(freePlayers.begin(), freePlayers.end(), rng);
-    return std::vector<std::string>(freePlayers.begin(), freePlayers.begin() + std::min(n, static_cast<int>(freePlayers.size())));
-}
