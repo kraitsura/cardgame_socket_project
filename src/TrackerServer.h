@@ -9,11 +9,9 @@ class TrackerServer {
 private:
     Tracker tracker;
 
-    std::string startGame(const std::string& dealer, int n, int holes);
-
 public:
     TrackerServer();
-
+    std::string formatResponse(const std::string& command, const std::string& trackerResponse);
     std::string handleCommand(const Message& msg);
 };
 
