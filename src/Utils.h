@@ -29,10 +29,6 @@ struct PlayerInfo {
     std::string state;  // "free" or "in-play"
     int tPort;
     int pPort;
-    std::shared_ptr<std::vector<Card>> hand; // New field for the player's hand
-
-    PlayerInfo(const std::string& n, const std::string& ip, const std::string& s, int t, int p)
-        : name(n), ipAddress(ip), state(s), tPort(t), pPort(p), hand(nullptr) {}
 };
 
 struct GameInfo {
@@ -42,14 +38,6 @@ struct GameInfo {
     int holes;
 };
 
-struct Card;
-class Deck;
-
-std::string displayHand(const std::vector<Card>& hand, int cardsPerRow = 6);
-void updateHand(std::vector<Card>& hand, size_t index, Card newCard);
-void flipCard(std::vector<Card>& hand, size_t index);
-
 void DieWithError(const char *errorMessage);
-void ShowHelp();
 
 #endif // UTILS_H
