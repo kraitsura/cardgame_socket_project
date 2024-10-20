@@ -22,7 +22,7 @@ private:
     std::string playerIP;
     int tPort;
     int pPort;
-    bool isRegistered;
+    bool isRegistered = false;
     std::vector<int> peerSockets;
 
     void setupNonBlocking(int sock) {
@@ -186,17 +186,6 @@ public:
         std::cout << "Query games request sent. Waiting for response..." << std::endl;
     }
 
-    void showHelp() {
-        std::cout << "Available commands:" << std::endl;
-        std::cout << "  register <name> <ip> <tracker_port> <peer_port> - Register player" << std::endl;
-        std::cout << "  deregister - De-register player" << std::endl;
-        std::cout << "  start <num_players> <num_holes> - Start a new game" << std::endl;
-        std::cout << "  query_players - Query registered players" << std::endl;
-        std::cout << "  query_games - Query ongoing games" << std::endl;
-        std::cout << "  help - Show this help message" << std::endl;
-        std::cout << "  quit - Exit the program" << std::endl;
-    }
-
     void run() {
         // Start a thread to handle tracker communication
         std::thread trackerThread(&PlayerClient::handleTrackerCommunication, this);
@@ -235,7 +224,7 @@ public:
             } else if (cmd == "query_games") {
                 queryGames();
             } else if (cmd == "help") {
-                showHelp();
+                ShowHelp();
             } else {
                 std::cout << "Unknown command. Type 'help' for a list of commands." << std::endl;
             }
